@@ -1,0 +1,34 @@
+name = "fetch-cf-config"
+main = "index.js"
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Policy versioning + audit trail storage ────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "fetch-cf-config-db"
+database_id = "YOUR_D1_DATABASE_ID"   # npx wrangler d1 create fetch-cf-config-db
+
+[[r2_buckets]]
+binding = "SNAPSHOTS"
+bucket_name = "fetch-cf-config-snapshots"
+
+# ── Scheduled change detection ──────────────────────────────────────────────
+# Every 5 minutes the worker polls Cloudflare's audit log for new activity.
+# When changes are detected, each tracked target's live configuration is
+# compared against its latest version and any drift is recorded as a new
+# delta version — attributed to the administrator who made the change.
+# Requires a read-only CF API token stored as a secret:
+#   npx wrangler secret put CF_API_TOKEN
+[triggers]
+crons = ["*/5 * * * *"]
+
+# ── Identity (Cloudflare Access) ────────────────────────────────────────────
+# Set these as secrets to require Cloudflare Access authentication and record
+# the signed-in user's email as the actor on every audited action:
+#   npx wrangler secret put ACCESS_TEAM_DOMAIN   # e.g. "myteam" from <myteam>.cloudflareaccess.com
+#   npx wrangler secret put ACCESS_AUD            # AUD tag of the Access application
+# When unset, the worker runs in anonymous mode (dev/local only) and audit
+# entries are attributed to "anonymous".
+[vars]

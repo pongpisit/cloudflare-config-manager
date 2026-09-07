@@ -1,0 +1,9 @@
+# local wrangler config with real account/database ids — never commit
+wrangler.toml
+.dev.vars
+
+# dependencies & tooling state
+node_modules/
+.wrangler/
+.DS_Store
+*.log

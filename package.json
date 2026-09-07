@@ -1,0 +1,11 @@
+{
+  "name": "fetch-cf-config",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node test/rollback.test.mjs && node test/versioning.test.mjs",
+    "test:ui": "node test/ui-restore.e2e.mjs"
+  }
+}
