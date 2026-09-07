@@ -209,25 +209,31 @@ npx wrangler secret delete ACCESS_AUD
 | Version view / diff | 1 | 0 | 1–25 | 1 (audit) | 1–3 Class B |
 | Restore: preview then execute | 2 | ~154 total (live + ops + verify) | ~50 | ~60 (safety snap + version + audit) | 2 Class A + ~3 Class B |
 
-**Monthly aggregate** (personal / small-team use — 1–3 admins, 3 tracked targets, 10–100 changes recorded):
+**Monthly aggregate** (personal / small-team use — 1–3 admins, 3 tracked targets, 10–100 changes recorded). Pricing verified against the official docs ([Workers](https://developers.cloudflare.com/workers/platform/pricing/), [limits](https://developers.cloudflare.com/workers/platform/limits/), [D1](https://developers.cloudflare.com/d1/platform/pricing/), [R2](https://developers.cloudflare.com/r2/pricing/)):
 
-| Component | Est. monthly usage | Free allowance | Headroom | Cost |
+| Component | Est. monthly usage | Workers Free | Workers Paid ($5/mo) | Cost on paid |
 |---|---|---|---|---|
-| **Workers requests** | 10–20K (cron = 8,640 fixed + UI) | 100K/day (free plan) | >100× | $0 |
-| **Workers subrequests / invocation** | up to ~154 (restore) | **50/request on free plan** | — | ⚠ see below |
-| **Workers CPU time** | 20–200ms per fetch/diff | 10ms/request (free plan) | — | ⚠ see below |
-| **D1 rows read** | ~50–150K | 5M/day | >500× | $0 |
-| **D1 rows written** | ~3–10K | 100K/day | >100× | $0 |
-| **D1 storage** | ~25–50MB after a year | 5GB | >100× | $0 |
-| **R2 storage** | ~2.5MB at retention cap (200 versions/target; full snapshots measure 5–25KB gzipped, deltas ~2KB) | 10GB | >1,000× | $0 |
-| **R2 Class A writes** | ~300–500 | 1M/mo | >2,000× | $0 |
-| **R2 Class B reads** | ~1–3K | 10M/mo | >3,000× | $0 |
-| **Cloudflare Access** | 1–3 users + 1 service token | 50 users | >10× | $0 |
-| **Cloudflare API calls** (outbound, free) | ~20–30K | rate limit 1,200/5min | ~20× | $0 |
+| **Workers requests** | 10–20K (cron = 8,640 fixed + UI) | 100K/day | 10M/mo included, +$0.30/M | $0 |
+| **Workers subrequests** (not billed; a per-invocation limit) | up to ~154 (restore) | **50/request** | 10,000/request | $0 |
+| **Workers CPU time** | 20–200ms per fetch/diff | **10ms/invocation** | 30M CPU-ms/mo included, +$0.02/M; cron gets 30s/invocation | $0 |
+| **D1 rows read** | ~50–150K | 5M/day | first 25 **billion**/mo included | $0 |
+| **D1 rows written** | ~3–10K | 100K/day | first 50 **million**/mo included | $0 |
+| **D1 storage** | ~25–50MB after a year | 5GB total | 5GB included, +$0.75/GB-mo | $0 |
+| **R2 storage** | ~2.5MB at retention cap (200 versions/target; fulls measure 5–25KB gzipped, deltas ~2KB) | 10GB-mo/mo | $0.015/GB-mo beyond | $0 |
+| **R2 Class A writes** (PUTs) | ~300–500 | 1M/mo | $4.50/M beyond | $0 |
+| **R2 Class B reads** (GETs) | ~1–3K | 10M/mo | $0.36/M beyond | $0 |
+| **Cloudflare Access** | 1–3 users + 1 service token | Zero Trust Free: 50 users | — | $0 |
+| **Cloudflare API calls** (outbound `fetch`es) | ~20–30K | free, rate-limited (1,200/5min/token) | — | $0 |
 
-**The one thing that costs money: Workers Paid ($5/month, minimum).** The free plan caps each invocation at **50 subrequests and 10ms CPU** — an AppSec fetch needs ~62 subrequests and the delta diffing can exceed 10ms CPU, so full fetches, drift checks and restores require the paid plan (1,000 subrequests, 30M CPU-ms/mo included). Everything else stays in free tiers even on the paid plan.
+**The one thing that costs money: the Workers Paid plan ($5/month, minimum charge).** The free plan caps each invocation at **50 subrequests and 10ms CPU** — an AppSec fetch needs ~62 subrequests and delta diffing a full payload can exceed 10ms of CPU, so full fetches, drift checks and restores require the paid plan (10,000 subrequests/invocation; 30M CPU-ms/month included). Everything else — D1, R2, Access — stays in free-tier territory even on the paid plan, with 100–100,000× headroom.
 
-**Realistic monthly bill: $5 flat.** Overage would require millions of requests or a change volume thousands of times higher than typical admin use.
+Notes:
+- Subrequests to `api.cloudflare.com` are never billed (only inbound requests + cron invocations count).
+- R2 `DeleteObject` is free — retention pruning costs nothing.
+- Free-plan D1/R2 limits reset daily/monthly; paid D1 allowances are included, not per-use.
+- Outbound connections queue in batches of 6 per invocation — affects fetch latency only, not correctness or cost.
+
+**Realistic monthly bill: $5 flat.** Overage would require ~10M requests, 25B+ D1 reads, or a change volume thousands of times higher than typical admin use.
 
 ## Deployment
 
