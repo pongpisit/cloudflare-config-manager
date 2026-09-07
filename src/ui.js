@@ -47,6 +47,13 @@ export const UI_HTML = `<!DOCTYPE html>
     .more-menu a.topbar-link:hover { background: #f0f2f5; text-decoration: none; opacity: 1; }
     .more-menu a.topbar-link.active { color: var(--cf-orange); font-weight: 700; }
     .more-sep { height: 1px; background: var(--cf-border); margin: 6px 0; }
+    /* Row kebab menu (version row overflow actions) */
+    .kebab { background: none; border: none; font-size: 17px; font-weight: 700; color: var(--cf-muted); cursor: pointer; padding: 0 6px; border-radius: 4px; line-height: 1; vertical-align: middle; }
+    .kebab:hover { background: #f0f2f5; color: var(--cf-dark); }
+    .row-menu { position: fixed; background: #fff; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.2); min-width: 170px; padding: 6px 0; z-index: 70; }
+    .row-menu a { display: block; padding: 9px 16px; font-size: 13.5px; color: var(--cf-dark); cursor: pointer; }
+    .row-menu a:hover { background: #f0f2f5; }
+    .row-menu a.menu-danger { color: var(--cf-danger); }
     .main { max-width: 1100px; margin: 28px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 20px; }
     .card { background: var(--cf-surface); border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.08); padding: 22px 24px; }
     .card h2 { font-size: 15px; font-weight: 700; color: var(--cf-blue); margin-bottom: 16px; border-bottom: 1px solid var(--cf-border); padding-bottom: 10px; }
@@ -120,6 +127,11 @@ export const UI_HTML = `<!DOCTYPE html>
     .diff-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; background: #1e1e2e; color: #cdd6f4; padding: 8px 12px; border-radius: 6px; margin: 5px 0 0 0; overflow: auto; max-height: 220px; white-space: pre-wrap; word-break: break-all; }
     .diff-code.plus { border-left: 3px solid #22c55e; }
     .diff-code.minus { border-left: 3px solid #ef4444; }
+    /* Side-by-side diff: before | after */
+    .diff-sxs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 5px; }
+    .diff-sxs .diff-code { margin: 0; max-height: 240px; }
+    .diff-empty-cell { background: #fafafa; border: 1px dashed var(--cf-border); border-radius: 6px; padding: 10px 12px; color: var(--cf-muted); font-size: 11.5px; font-style: italic; }
+    @media (max-width: 720px) { .diff-sxs { grid-template-columns: 1fr; } }
     .diff-empty { padding: 20px; text-align: center; color: var(--cf-muted); }
     .diff-group { border: 1px solid var(--cf-border); border-radius: 8px; margin-top: 8px; }
     .diff-group summary { cursor: pointer; padding: 8px 12px; font-size: 13px; list-style: none; background: #fafafa; border-radius: 8px; }
@@ -527,6 +539,15 @@ export const UI_HTML = `<!DOCTYPE html>
     <div class="modal" id="modal-body"></div>
   </div>
 
+  <!-- Version row overflow menu (shared) -->
+  <div class="row-menu hidden" id="row-menu">
+    <a onclick="menuView()">View</a>
+    <a onclick="menuChanges()">Changes</a>
+    <a onclick="menuDiff()">Diff vs live</a>
+    <div class="more-sep"></div>
+    <a class="menu-danger" id="row-menu-delete" onclick="menuDelete()">Delete</a>
+  </div>
+
   <script>
     // ── State ──────────────────────────────────────────────────────────────
     let allZones = [];
@@ -642,7 +663,10 @@ export const UI_HTML = `<!DOCTYPE html>
     // ── More menu (overflow nav) ───────────────────────────────────────────
     function toggleMoreMenu(ev) { if (ev) ev.stopPropagation(); const m = $('more-menu'); if (m) m.classList.toggle('hidden'); }
     function closeMoreMenu() { const m = $('more-menu'); if (m) m.classList.add('hidden'); }
-    document.addEventListener('click', function (e) { if (!(e.target.closest && e.target.closest('.nav-more'))) closeMoreMenu(); });
+    document.addEventListener('click', function (e) {
+      if (!(e.target.closest && e.target.closest('.nav-more'))) closeMoreMenu();
+      if (!(e.target.closest && e.target.closest('#row-menu'))) closeRowMenu();
+    });
 
     // Show/hide an optional UI block (filters, compare bar) and flip the
     // trigger button's arrow.
@@ -652,6 +676,30 @@ export const UI_HTML = `<!DOCTYPE html>
       el.classList.toggle('hidden');
       if (btn) btn.innerHTML = btn.innerHTML.replace(/\s[&#9662;&#9652;]+;?/g, el.classList.contains('hidden') ? ' &#9662;' : ' &#9652;');
     }
+
+    // ── Version row overflow menu (kebab) ───────────────────────────────────
+    // One shared menu repositioned next to the clicked kebab; rowMenuCtx
+    // carries the target version id until an action runs or the menu closes.
+    let rowMenuCtx = null;
+    function openRowMenu(ev, id, canDelete) {
+      if (ev) ev.stopPropagation();
+      rowMenuCtx = id;
+      const m = $('row-menu');
+      const del = $('row-menu-delete');
+      if (del) del.style.display = canDelete ? '' : 'none';
+      if (m) {
+        m.classList.remove('hidden');
+        try {
+          m.style.left = Math.max(8, Math.min(ev.clientX - 150, (window.innerWidth || 1200) - 190)) + 'px';
+          m.style.top = (ev.clientY + 10) + 'px';
+        } catch (e) { /* positioning is best-effort */ }
+      }
+    }
+    function closeRowMenu() { const m = $('row-menu'); if (m) m.classList.add('hidden'); }
+    function menuView() { const id = rowMenuCtx; closeRowMenu(); if (id) loadVersion(id); }
+    function menuChanges() { const id = rowMenuCtx; closeRowMenu(); if (id) viewVersionChanges(id); }
+    function menuDiff() { const id = rowMenuCtx; closeRowMenu(); if (id) diffVersionLive(id); }
+    function menuDelete() { const id = rowMenuCtx; closeRowMenu(); if (id) deleteVersion(id); }
 
     // ── Init ───────────────────────────────────────────────────────────────
     async function init() {
@@ -1432,11 +1480,8 @@ export const UI_HTML = `<!DOCTYPE html>
           '<td>' + descriptionCell(v) + '</td>' +
           '<td>' + kindCell(v) + '</td>' +
           '<td class="row-actions">' +
-            '<button class="link-btn" onclick="loadVersion(\\'' + v.id + '\\')" title="Load this version as the candidate in Results">View</button>' +
-            '<button class="link-btn" onclick="viewVersionChanges(\\'' + v.id + '\\')" title="What changed in this version vs the previous one">Changes</button>' +
-            '<button class="link-btn" onclick="diffVersionLive(\\'' + v.id + '\\')" title="Compare this version with the current live configuration">Diff</button>' +
             '<button class="link-btn" onclick="rollbackVersion(\\'' + v.id + '\\')" title="Roll the live configuration back to this version" style="font-weight:700">Restore</button>' +
-            (v.deleted_at ? '' : '<button class="link-btn link-danger" onclick="deleteVersion(\\'' + v.id + '\\')">Delete</button>') +
+            '<button class="kebab" title="More actions" onclick="openRowMenu(event, \\'' + v.id + '\\', ' + (!v.deleted_at) + ')">&#8943;</button>' +
           '</td>';
         tbody.appendChild(tr);
       });
@@ -1534,17 +1579,19 @@ export const UI_HTML = `<!DOCTYPE html>
       let html = '';
       changes.forEach(c => {
         const kind = c.type === 'added' ? 'added' : c.type === 'removed' ? 'removed' : 'changed';
+        // Side-by-side: before (−) on the left, after (+) on the right.
         html += '<div class="diff-row">' +
           '<span class="badge badge-' + kind + '">' + kind + '</span>' +
-          '<span class="diff-path">' + escHtml(c.path) + '</span>';
-        if (c.type === 'added') {
-          html += diffCodeBlock('+', 'plus', c.after);
-        } else if (c.type === 'removed') {
-          html += diffCodeBlock('−', 'minus', c.before);
-        } else {
-          html += diffCodeBlock('−', 'minus', c.before) + diffCodeBlock('+', 'plus', c.after);
-        }
-        html += '</div>';
+          '<span class="diff-path">' + escHtml(c.path) + '</span>' +
+          '<div class="diff-sxs">' +
+            (c.type === 'added'
+              ? '<div class="diff-empty-cell">not present</div>'
+              : diffCodeBlock('−', 'minus', c.before)) +
+            (c.type === 'removed'
+              ? '<div class="diff-empty-cell">removed</div>'
+              : diffCodeBlock('+', 'plus', c.after)) +
+          '</div>' +
+        '</div>';
       });
       return html;
     }
