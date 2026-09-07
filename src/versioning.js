@@ -61,12 +61,13 @@ export function attributionLabel(entries, maxLen = 140) {
   return label;
 }
 
-// Endpoints whose data is inherently volatile (logs). They never trigger a new
-// version and are never recorded in deltas — their value from the last full
-// snapshot stays in the reconstructed state.
-// NOTE: DEX tests use the devices/dex_tests definitions endpoint (pure config)
-// — the analytics /dex/tests/overview endpoint with embedded results is never fetched.
-export const VOLATILE_ENDPOINTS = new Set(['audit_logs']);
+// Endpoints whose data is inherently volatile (logs) or retired from the
+// catalog (DEX). They never trigger a new version, never enter deltas, and are
+// excluded from display diffs and rollback previews — their value from the last
+// full snapshot stays in the reconstructed state of old versions.
+// NOTE: DEX test definitions were removed from scope; old versions that
+// contain them simply stop being compared/fetched going forward.
+export const VOLATILE_ENDPOINTS = new Set(['audit_logs', 'dex_tests']);
 
 // Runtime (non-config) keys inside specific endpoints that must not trigger
 // versions or appear in diffs — e.g. Cloudflare Tunnel status flaps on

@@ -52,11 +52,6 @@ export async function fetchEndpoints(token, tasks) {
         const accountId = (path.match(/^accounts\/([^/]+)\//) || [])[1];
         if (accountId) data = await enrichGatewayLists(token, accountId, data);
       }
-      // DEX test definitions come wrapped as {dex_tests: [...]} — unwrap to
-      // the plain array so diffing/versioning/restore work on the tests.
-      if (name === 'dex_tests' && data && typeof data === 'object' && Array.isArray(data.dex_tests)) {
-        data = data.dex_tests;
-      }
       return { catKey, name, path, status: 'ok', data, http: status };
     } catch {
       return { catKey, name, path, status: 'error', data: null };

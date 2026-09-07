@@ -81,8 +81,8 @@ test('computeEndpointDelta: volatile endpoints never trigger versions', () => {
   const d = computeEndpointDelta(base, next, new Set(['account|audit_logs']));
   assert.equal(d.ops.length, 0);
   assert.ok(VOLATILE_ENDPOINTS.has('audit_logs'));
-  // DEX tests are now real configuration (definitions endpoint) — not volatile
-  assert.ok(!VOLATILE_ENDPOINTS.has('dex_tests'));
+  // DEX was retired from the catalog; old versions containing it are never compared
+  assert.ok(VOLATILE_ENDPOINTS.has('dex_tests'));
 });
 
 test('computeEndpointDelta: volatile endpoint still recorded when it carries real change', () => {
@@ -420,12 +420,11 @@ test('scopes: all Cloudflare One endpoints are account-scoped', () => {
   assert.ok(zt.endpoints.every(ep => ep.scope === 'account'));
 });
 
-test('catalog: DEX tests use the config definitions endpoint (never analytics)', () => {
-  const zt = CATEGORIES.find(c => c.key === 'zero_trust');
-  const dex = zt.endpoints.find(ep => ep.name === 'dex_tests');
-  assert.ok(dex, 'dex_tests must exist');
-  assert.ok(dex.path(null, 'a1').includes('/devices/dex_tests'), 'must use devices/dex_tests (definitions)');
-  assert.ok(!dex.path(null, 'a1').includes('overview'), 'must never fetch the analytics overview');
+test('catalog: DEX endpoints are fully excluded (retired from scope)', () => {
+  const names = CATEGORIES.flatMap(c => c.endpoints.map(ep => ep.name));
+  assert.ok(!names.includes('dex_tests'), 'dex_tests must not be in the catalog');
+  // retired but still volatile: old versions containing DEX are never compared
+  assert.ok(VOLATILE_ENDPOINTS.has('dex_tests'));
 });
 
 test('catalog: analytics/licensing endpoints are excluded', () => {

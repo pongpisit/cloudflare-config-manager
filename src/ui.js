@@ -40,6 +40,13 @@ export const UI_HTML = `<!DOCTYPE html>
     .topbar-link.active { opacity: 1; font-weight: 700; border-bottom-color: var(--cf-orange); }
     .user-pill { font-size: 12.5px; background: rgba(255,255,255,.14); padding: 5px 12px; border-radius: 14px; }
     .user-pill.pill-warn { background: #f59e0b; color: #422006; font-weight: 600; }
+    /* More menu (overflow nav) */
+    .nav-more { position: relative; }
+    .more-menu { position: absolute; right: 0; top: calc(100% + 10px); background: #fff; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.2); min-width: 170px; padding: 6px 0; z-index: 60; }
+    .more-menu a.topbar-link { display: block; color: var(--cf-dark); padding: 10px 16px; opacity: 1; border-bottom: none; }
+    .more-menu a.topbar-link:hover { background: #f0f2f5; text-decoration: none; opacity: 1; }
+    .more-menu a.topbar-link.active { color: var(--cf-orange); font-weight: 700; }
+    .more-sep { height: 1px; background: var(--cf-border); margin: 6px 0; }
     .main { max-width: 1100px; margin: 28px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 20px; }
     .card { background: var(--cf-surface); border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.08); padding: 22px 24px; }
     .card h2 { font-size: 15px; font-weight: 700; color: var(--cf-blue); margin-bottom: 16px; border-bottom: 1px solid var(--cf-border); padding-bottom: 10px; }
@@ -166,12 +173,18 @@ export const UI_HTML = `<!DOCTYPE html>
         <a class="topbar-link" id="nav-overview" onclick="showPage('overview')">Overview</a>
         <a class="topbar-link" id="nav-appsec" onclick="showPage('appsec')">AppSec</a>
         <a class="topbar-link" id="nav-one" onclick="showPage('one')">Cloudflare One</a>
-        <a class="topbar-link" id="nav-audit" onclick="showPage('audit')">Audit Log</a>
-        <a class="topbar-link" id="nav-reference" onclick="showPage('reference')">Reference</a>
-        <a class="topbar-link" id="nav-settings" onclick="showPage('settings')">Settings</a>
+        <div class="nav-more">
+          <a class="topbar-link" id="nav-more" onclick="toggleMoreMenu(event)">More &#9662;</a>
+          <div class="more-menu hidden" id="more-menu">
+            <a class="topbar-link" id="nav-audit" onclick="showPage('audit');closeMoreMenu()">Audit Log</a>
+            <a class="topbar-link" id="nav-reference" onclick="showPage('reference');closeMoreMenu()">Reference</a>
+            <a class="topbar-link" id="nav-settings" onclick="showPage('settings');closeMoreMenu()">Settings</a>
+            <div class="more-sep"></div>
+            <a class="topbar-link" id="clear-session-btn" style="display:none" onclick="closeMoreMenu();clearSession()">Clear session</a>
+          </div>
+        </div>
       </div>
       <span class="user-pill" id="session-pill" style="display:none"></span>
-      <a class="topbar-link" id="clear-session-btn" style="display:none" onclick="clearSession()">Clear session</a>
       <span class="user-pill" id="user-pill">Loading…</span>
     </div>
   </div>
@@ -280,9 +293,11 @@ export const UI_HTML = `<!DOCTYPE html>
           <button class="btn btn-outline" onclick="loadVersions('zone')">Refresh</button>
           <button class="btn btn-primary" id="zone-check-btn" onclick="checkChanges('zone')">Check for changes</button>
           <button class="btn btn-secondary" id="zone-named-btn" onclick="saveNamedSnapshot('zone')">Save Named Snapshot</button>
+          <button class="btn btn-outline" onclick="toggleBlock('zone-ver-filters', this)">Filters &#9662;</button>
+          <button class="btn btn-outline" onclick="toggleBlock('zone-compare-bar', this)">Compare versions &#9662;</button>
           <span class="info" id="zone-versions-info"></span>
         </div>
-        <div class="filter-bar">
+        <div class="filter-bar hidden" id="zone-ver-filters">
           <div class="field" style="min-width:130px">
             <label>Trigger</label>
             <select id="zone-ver-filter-trigger" onchange="renderVersions('zone')">
@@ -314,7 +329,7 @@ export const UI_HTML = `<!DOCTYPE html>
           </thead>
           <tbody id="zone-versions-tbody"><tr><td colspan="7" class="muted" style="padding:14px">Loading…</td></tr></tbody>
         </table>
-        <div class="results-toolbar" style="margin-top:14px" id="zone-compare-bar">
+        <div class="results-toolbar hidden" style="margin-top:14px" id="zone-compare-bar">
           <select id="zone-cmp-a" style="padding:8px;border:1px solid var(--cf-border);border-radius:6px;font-size:13px;min-width:220px"></select>
           <span class="muted">vs</span>
           <select id="zone-cmp-b" style="padding:8px;border:1px solid var(--cf-border);border-radius:6px;font-size:13px;min-width:220px"></select>
@@ -391,9 +406,11 @@ export const UI_HTML = `<!DOCTYPE html>
           <button class="btn btn-outline" onclick="loadVersions('account')">Refresh</button>
           <button class="btn btn-primary" id="acct-check-btn" onclick="checkChanges('account')">Check for changes</button>
           <button class="btn btn-secondary" id="acct-named-btn" onclick="saveNamedSnapshot('account')">Save Named Snapshot</button>
+          <button class="btn btn-outline" onclick="toggleBlock('acct-ver-filters', this)">Filters &#9662;</button>
+          <button class="btn btn-outline" onclick="toggleBlock('acct-compare-bar', this)">Compare versions &#9662;</button>
           <span class="info" id="acct-versions-info"></span>
         </div>
-        <div class="filter-bar">
+        <div class="filter-bar hidden" id="acct-ver-filters">
           <div class="field" style="min-width:130px">
             <label>Trigger</label>
             <select id="acct-ver-filter-trigger" onchange="renderVersions('account')">
@@ -425,7 +442,7 @@ export const UI_HTML = `<!DOCTYPE html>
           </thead>
           <tbody id="acct-versions-tbody"><tr><td colspan="7" class="muted" style="padding:14px">Loading…</td></tr></tbody>
         </table>
-        <div class="results-toolbar" style="margin-top:14px" id="acct-compare-bar">
+        <div class="results-toolbar hidden" style="margin-top:14px" id="acct-compare-bar">
           <select id="acct-cmp-a" style="padding:8px;border:1px solid var(--cf-border);border-radius:6px;font-size:13px;min-width:220px"></select>
           <span class="muted">vs</span>
           <select id="acct-cmp-b" style="padding:8px;border:1px solid var(--cf-border);border-radius:6px;font-size:13px;min-width:220px"></select>
@@ -611,12 +628,29 @@ export const UI_HTML = `<!DOCTYPE html>
         const nav = $('nav-' + key);
         if (nav) nav.classList.toggle('active', key === name);
       }
+      // the More menu link stays highlighted while any of its subpages is open
+      const more = $('nav-more');
+      if (more) more.classList.toggle('active', ['audit', 'reference', 'settings'].includes(name));
       if (!skipSave) saveSession();
       if (name === 'overview') loadOverview();
       if (name === 'audit') loadAudit(true);
       if (name === 'reference') renderReference();
       if (name === 'appsec') autoOpenScope('zone');
       if (name === 'one') autoOpenScope('account');
+    }
+
+    // ── More menu (overflow nav) ───────────────────────────────────────────
+    function toggleMoreMenu(ev) { if (ev) ev.stopPropagation(); const m = $('more-menu'); if (m) m.classList.toggle('hidden'); }
+    function closeMoreMenu() { const m = $('more-menu'); if (m) m.classList.add('hidden'); }
+    document.addEventListener('click', function (e) { if (!(e.target.closest && e.target.closest('.nav-more'))) closeMoreMenu(); });
+
+    // Show/hide an optional UI block (filters, compare bar) and flip the
+    // trigger button's arrow.
+    function toggleBlock(id, btn) {
+      const el = $(id);
+      if (!el) return;
+      el.classList.toggle('hidden');
+      if (btn) btn.innerHTML = btn.innerHTML.replace(/\s[&#9662;&#9652;]+;?/g, el.classList.contains('hidden') ? ' &#9662;' : ' &#9652;');
     }
 
     // ── Init ───────────────────────────────────────────────────────────────
@@ -740,7 +774,7 @@ export const UI_HTML = `<!DOCTYPE html>
 
     function zoneChanged() {
       const note = $('scope-note');
-      if (note) note.innerHTML = '<b>AppSec product</b> — zone-level WAF, DDoS, Bot, API Shield, TLS, CDN and DNS for the selected zone' + ($('account-id').value.trim() ? ', <b>plus account-level WAF</b> (custom rules, account IP access rules).' : '. Provide an Account ID to also capture account-level WAF.') + ' Zero Trust is a separate product page — nothing is mixed.';
+      if (note) note.innerHTML = '<b>AppSec</b> — WAF, DDoS, Bot, API Shield, TLS, CDN and DNS for this zone' + ($('account-id').value.trim() ? ' + account-level WAF' : '') + '. Auto-checked every 5 min.';
       saveSession();
       SCOPES.zone.state.liveMatches = null; // different target — current/live status unknown
       loadVersions('zone');
@@ -1400,7 +1434,7 @@ export const UI_HTML = `<!DOCTYPE html>
           '<td class="row-actions">' +
             '<button class="link-btn" onclick="loadVersion(\\'' + v.id + '\\')" title="Load this version as the candidate in Results">View</button>' +
             '<button class="link-btn" onclick="viewVersionChanges(\\'' + v.id + '\\')" title="What changed in this version vs the previous one">Changes</button>' +
-            '<button class="link-btn" onclick="diffVersionLive(\\'' + v.id + '\\')" title="Compare this version with the current live configuration">Diff vs live</button>' +
+            '<button class="link-btn" onclick="diffVersionLive(\\'' + v.id + '\\')" title="Compare this version with the current live configuration">Diff</button>' +
             '<button class="link-btn" onclick="rollbackVersion(\\'' + v.id + '\\')" title="Roll the live configuration back to this version" style="font-weight:700">Restore</button>' +
             (v.deleted_at ? '' : '<button class="link-btn link-danger" onclick="deleteVersion(\\'' + v.id + '\\')">Delete</button>') +
           '</td>';

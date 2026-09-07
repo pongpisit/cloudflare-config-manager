@@ -61,6 +61,7 @@ globalThis.document = {
   getElementById: el,
   createElement: (t) => makeEl(t),
   body: makeEl('body'),
+  addEventListener: () => {},
   querySelectorAll: (sel) => {
     if (sel === '.cat-card.selected') {
       return registry.filter(e => {

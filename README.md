@@ -32,11 +32,16 @@ migrations/           — incremental migrations for existing databases
 
 ## Using the tool (UX)
 
-The app is organized into six pages — connection settings are separated from the daily operations:
+The app is organized around a lean top bar — three primary destinations plus a **More** overflow menu — so the daily workflow (check drift → review a change → restore) needs zero navigation hunting:
+
+- **Overview / AppSec / Cloudflare One** (primary nav) — the drift dashboard and the two product pages.
+- **More ▾** — Audit Log, Reference, Settings, Clear session.
+
+Pages:
 
 - **Settings** — connection & session: paste your API token and click **Connect** (zones + the Cloudflare One account are detected automatically). Shows connection status and the recommended token permissions.
 - **Overview** (landing after connecting) — the drift dashboard: latest version, version count, last scheduled check and its result for every tracked target, with per-target **Check now** / **Open**. Guided empty states when not connected or before the first baseline exists.
-- **AppSec** — the zone-level product page: pick a zone, choose categories (WAF/DDoS/Bot/API Shield, TLS, CDN, DNS + account-level WAF), fetch, results, **AppSec Version Snapshots** (filters, compare bar, Check, Named Snapshot), restore, and zone-vs-zone comparison.
+- **AppSec** — the zone-level product page: pick a zone, choose categories (WAF/DDoS/Bot/API Shield, TLS, CDN, DNS + account-level WAF), fetch, results, **AppSec Version Snapshots** (filters and version-compare are collapsed behind buttons to keep the page quiet), restore, and zone-vs-zone comparison.
 - **Cloudflare One** — the account-level Zero Trust product page, fully independent of zones: its own fetch, results, **Zero Trust Version Snapshots** and restore. No zone selector, no WAF content.
 - **Audit Log** — the append-only change history with friendly labels and filters.
 - **Reference** — the built-in settings catalog: every captured setting for both products with a plain-English description of what it controls, its API path, and its restore behavior (restorable vs view-only, plus special restore semantics like DNS type+name matching, gateway-list item reconciliation, and new-secrets warnings). Searchable.
@@ -58,9 +63,9 @@ The tool versions **policy configuration only** — deliberately excluding devel
 | Scope | What it covers | Version key |
 |---|---|---|
 | **Zone** | **AppSec**: WAF/custom firewall rules, managed rules, overrides, UA rules, lockdowns, rate limits, IP access rules, Bot Management, DDoS L7 overrides, managed headers, Transform/Redirect/Config rules, API Shield, security settings, SSL/certificates · **TLS & network security**: min TLS version, TLS 1.3, HSTS/always-use-HTTPS, HTTP/2/3, IPv6, onion routing, NEL… · **CDN**: cache rules/settings, tiered cache, cache reserve, page rules, minify/polish/Rocket Loader… · **DNS**: records, DNSSEC | zone id |
-| **Account (Cloudflare One)** | **Zero Trust**: Access org/apps/policies/groups/service tokens/IdPs, Gateway configuration/lists (including each list's **items**) /locations/rules/proxy endpoints, tunnels + routes + virtual networks, device posture + settings + fallback domains, risk scoring, DLP profiles, **DEX test definitions** (configuration only — test *results* and analytics are never fetched) | account id |
+| **Account (Cloudflare One)** | **Zero Trust**: Access org/apps/policies/groups/service tokens/IdPs, Gateway configuration/lists (including each list's **items**) /locations/rules/proxy endpoints, tunnels + routes + virtual networks, device posture + settings + fallback domains, risk scoring, DLP profiles | account id |
 
-**Intentionally out of scope** (never versioned): Workers scripts/routes, Pages, KV, D1, Queues, R2, AI Gateway, Vectorize, Email Routing, Logpush, Notifications, Load Balancers, Spectrum, Magic WAN/Magic Transit, account members/roles/details, Cloudflare audit logs (volatile), DEX test *results*/analytics (`/dex/tests/overview`), SSL recommendation engine output, seat/licensing usage, and the static Gateway URL-category catalog. Only configuration, settings and rules are captured — runtime data (tunnel status, origin health, fetch timestamps, list item counts, key rotation state, DLP match counters, cert binding status, derived app-linkage counts) is fetched for context but never triggers versions or appears in diffs.
+**Intentionally out of scope** (never versioned): Workers scripts/routes, Pages, KV, D1, Queues, R2, AI Gateway, Vectorize, Email Routing, Logpush, Notifications, Load Balancers, Spectrum, Magic WAN/Magic Transit, account members/roles/details, Cloudflare audit logs (volatile), DEX (all endpoints — retired from scope; old versions containing DEX data are excluded from compares), SSL recommendation engine output, seat/licensing usage, and the static Gateway URL-category catalog. Only configuration, settings and rules are captured — runtime data (tunnel status, origin health, fetch timestamps, list item counts, key rotation state, DLP match counters, cert binding status, derived app-linkage counts) is fetched for context but never triggers versions or appears in diffs.
 
 Each scope has its own version history, change detection (on-demand + scheduled), named snapshots, retention, and restore flow. Zone fetches never capture account-level resources — select the **Account — Cloudflare One** target in the UI to fetch, version, check, and restore account-level configuration.
 
@@ -78,7 +83,7 @@ v1 (full)  ── v2 (delta) ── v3 (delta) ── … ── v27 (full, chai
 - **Named snapshots** (PAN SCM-style): save the current configuration under a name (≤64 chars, default `config_YYYY-MM-DD-HHMMSS`). Named snapshots are always stored full and are **pinned** — exempt from retention pruning — giving you known-good states you can always return to.
 - **Retention** (PAN SCM-style: 200 versions / 6 months): the newest 200 non-named versions and anything newer than 180 days are kept per zone; older excess versions are soft-deleted automatically (payloads retained for delta-chain integrity, prunes recorded in the audit trail). Override with `RETENTION_LIMIT` / `RETENTION_DAYS` vars (0 = unlimited).
 - **Restore bumps the version number** (PAN SCM semantics): executing a rollback records the restored live state as a new version (trigger `rollback`), so the restore itself is part of the history and the history stays monotonic.
-- **Volatile endpoints** (`audit_logs`) never trigger versions, never enter deltas, and are excluded from rollback previews (they can never be restored). DEX test *definitions* (`devices/dex_tests`) are real config and are versioned/restored — the analytics endpoint is never fetched.
+- **Volatile endpoints** (`audit_logs`, retired `dex_tests`) never trigger versions, never enter deltas, and are excluded from display diffs and rollback previews — old versions containing DEX data simply stop being compared.
 - **Volatile keys** — runtime fields inside otherwise-config payloads never trigger versions, diffs or restore comparisons: tunnel `status`/`connections`/`remote_config`, Access key rotation state (`last_key_rotation_at`, `days_until_next_rotation`), DLP match counters (`allowed_match_count`), Gateway certificate `binding_status`, and the derived Access policy `app_count`.
 - Endpoints that could not be fetched (permissions) keep their last recorded value — they are never treated as removed.
 
@@ -118,9 +123,9 @@ npx wrangler secret put CF_API_TOKEN   # read-only Cloudflare API token
 | Zone security settings | security_level, challenge_ttl, browser_check, hotlink, email obfuscation, SSE, security_header, scrape_shield, SSL |
 | TLS & network | min TLS version, TLS 1.3, always_use_https, automatic_https_rewrites, HTTP/2/3, zero RTT, opportunistic encryption/onion, IPv6, websockets, pseudo IPv4, IP geolocation, NEL |
 | CDN & DNS | cache rules/settings, tiered cache, cache reserve, page rules, minify/polish/Rocket Loader/etc., DNS records (reconciled by type+name), managed headers, speed brain |
-| Cloudflare One | Access org settings, apps (incl. inline policies), reusable policies, groups, service tokens, identity providers, tunnels, tunnel routes, virtual networks, Gateway configuration, DNS locations, **lists — including their items (appended/removed individually via the list PATCH API)**, all Gateway policies, proxy endpoints, device posture rules + integrations, device settings, fallback domain list, risk scoring, DEX test definitions (create/update/delete via the `devices/dex_tests` API) |
+| Cloudflare One | Access org settings, apps (incl. inline policies), reusable policies, groups, service tokens, identity providers, tunnels, tunnel routes, virtual networks, Gateway configuration, DNS locations, **lists — including their items (appended/removed individually via the list PATCH API)**, all Gateway policies, proxy endpoints, device posture rules + integrations, device settings, fallback domain list, risk scoring |
 
-View-only (reported in rollback results but never written): certificates, custom hostnames, DNSSEC, workers/pages, DLP, logs, seats, DEX, Access CA certs & keys, Magic Transit, and anything the snapshot couldn't fetch.
+View-only (reported in rollback results but never written): certificates, custom hostnames, DNSSEC, workers/pages, DLP, logs, seats, DEX (retired), Access CA certs & keys, Magic Transit, and anything the snapshot couldn't fetch.
 
 ### Safety guards
 

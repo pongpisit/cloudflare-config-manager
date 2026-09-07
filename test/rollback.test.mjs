@@ -459,25 +459,6 @@ test('plan gateway lists: new list with items → POST create + PATCH append', (
   assert.deepEqual(patch.body.append, [{ value: '5.5.5.5' }]);
 });
 
-test('plan DEX tests: collection keyed by test_id, config-only restore', () => {
-  const cls = classify('accounts/a1/devices/dex_tests?per_page=100');
-  assert.equal(cls.type, 'collection');
-  assert.equal(cls.idKey, 'test_id');
-  const snap = { result: [
-    { test_id: 't1', name: '8dot8', enabled: true, interval: '0h5m0s', data: { host: '8.8.8.8', kind: 'traceroute' }, targeted: true, target_policies: [], created: 'x', updated: 'y' },
-  ] };
-  const live = { result: [
-    { test_id: 't1', name: '8dot8', enabled: false, interval: '0h5m0s', data: { host: '8.8.8.8', kind: 'traceroute' }, targeted: true, target_policies: [], created: 'x', updated: 'y' },
-  ] };
-  const p = planEndpoint(cls, snap, live);
-  assert.equal(p.ops.length, 1);
-  assert.equal(p.ops[0].method, 'PUT');
-  assert.equal(p.ops[0].path, 'accounts/a1/devices/dex_tests/t1');
-  assert.equal(p.ops[0].body.test_id, undefined, 'test_id must be stripped from the PUT body');
-  assert.equal(p.ops[0].body.enabled, true);
-  assert.equal(p.ops[0].body.name, '8dot8');
-});
-
 test('plan gateway lists: identical → unchanged', () => {
   const cls = classify('accounts/a1/gateway/lists');
   const list = { id: 'l1', name: 'N', type: 'IP', items: [{ value: '1.1.1.1' }] };
@@ -521,7 +502,7 @@ test('reference: restorability classification spot checks', () => {
   };
   // restorable settings
   for (const n of ['dns_records', 'firewall_rules', 'gateway_lists', 'cache_rules', 'tiered_cache', 'cache_reserve',
-    'waf_managed_rules', 'access_policies', 'dex_tests', 'waf_custom_rules_acct']) {
+    'waf_managed_rules', 'access_policies', 'waf_custom_rules_acct']) {
     assert.ok(restorable(n), n + ' should be restorable');
   }
   // view-only settings

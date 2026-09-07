@@ -284,7 +284,8 @@ export async function checkAndVersionZone(env, { token, zoneId, trigger, actor, 
 export async function fetchLiveFromSnapshot(token, payload, cats) {
   const catSet = cats ? new Set(cats) : null;
   const eps = (payload._meta?.fetched_endpoints || [])
-    .filter(e => e.status === 'ok' && (!catSet || catSet.has(e.catKey)));
+    .filter(e => e.status === 'ok' && (!catSet || catSet.has(e.catKey)))
+    .filter(e => !VOLATILE_ENDPOINTS.has(e.name)); // skip volatile/retired endpoints (logs, DEX)
   const results = await fetchEndpoints(token, eps.map(e => ({ catKey: e.catKey, name: e.name, path: e.path })));
   const data = {};
   const statuses = [];

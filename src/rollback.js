@@ -20,6 +20,7 @@
 
 import { cf, toItems, enrichGatewayLists } from './cfapi.js';
 import { truncateStr } from './diff.js';
+import { VOLATILE_ENDPOINTS } from './versioning.js';
 
 // Keys stripped from write-back bodies (server-managed fields).
 const READ_ONLY_KEYS = new Set([
@@ -66,7 +67,6 @@ export const RESTORE_NOTES = {
   'tunnels': 'Restored tunnels get NEW connector tokens — cloudflared must be re-registered.',
   'access_idp': 'Provider secrets are not always returned — re-created IdPs may need manual re-configuration.',
   'access_apps': 'Includes inline policies; reusable policy bindings are restored by id.',
-  'dex_tests': 'Created/updated/deleted individually via the devices/dex_tests API (keyed by test_id).',
   'waf_custom_rules_acct': 'Restored via the phase entrypoint (all rules replaced as a set).',
   'ip_access_rules_acct': 'Per-rule create/update/delete across the whole account.',
   'waf_managed_rules': 'Per-package PATCH (sensitivity / action / detection mode).',
@@ -105,7 +105,6 @@ export function classify(path) {
 
   if (base.endsWith('/dns_records')) return { type: 'dns', base, pageGuard: 500 };
   if (base.endsWith('/gateway/lists')) return { type: 'gatewayLists', base, pageGuard: 100 };
-  if (base.endsWith('/devices/dex_tests')) return { type: 'collection', base, idKey: 'test_id', pageGuard: 100 };
   if (base.endsWith('/firewall/rules')) return { type: 'collection', base, createAsArray: true, pageGuard: 100 };
   if (base.endsWith('/firewall/waf/overrides')) return { type: 'collection', base, pageGuard: 100 };
   if (base.endsWith('/firewall/ua_rules')) return { type: 'collection', base, pageGuard: 100 };
@@ -584,7 +583,9 @@ async function verifyEndpoint(token, cls, snapData) {
 // fetchLiveFromSnapshot(); dryRun: plan only (no writes).
 export async function runRollback({ token, payload, categories, dryRun, live }) {
   const catSet = new Set(categories);
-  const eps = (payload._meta?.fetched_endpoints || []).filter(e => e.status === 'ok');
+  // Volatile/retired endpoints (logs, retired DEX) never participate in restores
+  const eps = (payload._meta?.fetched_endpoints || [])
+    .filter(e => e.status === 'ok' && !VOLATILE_ENDPOINTS.has(e.name));
   const entries = [];
 
   for (const ep of eps) {
