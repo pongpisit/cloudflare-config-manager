@@ -197,6 +197,38 @@ npx wrangler secret delete ACCESS_AUD
 - Scheduled checks use the tracked endpoint list of each zone's latest version; the list updates whenever a full version is recorded or the endpoint set changes (recorded as a `meta` delta op).
 - Local D1 databases created before delta versioning need `migrations/002-delta-versioning.sql` applied.
 
+## Usage & cost estimate
+
+**What each feature consumes** (measured against this system's real behavior — 86 endpoints in the catalog):
+
+| Feature | Workers requests | Subrequests / invocation | D1 reads | D1 writes | R2 ops |
+|---|---|---|---|---|---|
+| Cron tick, no changes (`*/5`) | 1 (scheduled) | 1 (audit-log poll) | ~3 (watermark) | 0 | 0 |
+| Cron tick with drift → new version | 1 (scheduled) | ~62 zone / ~31 account | ~100 (versions, chain) | ~10 (version + audit + target) | 1 Class A PUT |
+| UI product page open (auto-load) | 3 (list + fetch + drift preview) | ~62 / ~31 | ~200 | 0–10 | 1–3 Class B |
+| Version view / diff | 1 | 0 | 1–25 | 1 (audit) | 1–3 Class B |
+| Restore: preview then execute | 2 | ~154 total (live + ops + verify) | ~50 | ~60 (safety snap + version + audit) | 2 Class A + ~3 Class B |
+
+**Monthly aggregate** (personal / small-team use — 1–3 admins, 3 tracked targets, 10–100 changes recorded):
+
+| Component | Est. monthly usage | Free allowance | Headroom | Cost |
+|---|---|---|---|---|
+| **Workers requests** | 10–20K (cron = 8,640 fixed + UI) | 100K/day (free plan) | >100× | $0 |
+| **Workers subrequests / invocation** | up to ~154 (restore) | **50/request on free plan** | — | ⚠ see below |
+| **Workers CPU time** | 20–200ms per fetch/diff | 10ms/request (free plan) | — | ⚠ see below |
+| **D1 rows read** | ~50–150K | 5M/day | >500× | $0 |
+| **D1 rows written** | ~3–10K | 100K/day | >100× | $0 |
+| **D1 storage** | ~25–50MB after a year | 5GB | >100× | $0 |
+| **R2 storage** | ~2.5MB at retention cap (200 versions/target; full snapshots measure 5–25KB gzipped, deltas ~2KB) | 10GB | >1,000× | $0 |
+| **R2 Class A writes** | ~300–500 | 1M/mo | >2,000× | $0 |
+| **R2 Class B reads** | ~1–3K | 10M/mo | >3,000× | $0 |
+| **Cloudflare Access** | 1–3 users + 1 service token | 50 users | >10× | $0 |
+| **Cloudflare API calls** (outbound, free) | ~20–30K | rate limit 1,200/5min | ~20× | $0 |
+
+**The one thing that costs money: Workers Paid ($5/month, minimum).** The free plan caps each invocation at **50 subrequests and 10ms CPU** — an AppSec fetch needs ~62 subrequests and the delta diffing can exceed 10ms CPU, so full fetches, drift checks and restores require the paid plan (1,000 subrequests, 30M CPU-ms/mo included). Everything else stays in free tiers even on the paid plan.
+
+**Realistic monthly bill: $5 flat.** Overage would require millions of requests or a change volume thousands of times higher than typical admin use.
+
 ## Deployment
 
 1. Copy the config template and fill in your ids:
