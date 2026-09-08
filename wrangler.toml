@@ -1,14 +1,17 @@
 name = "fetch-cf-config"
 main = "index.js"
-account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 # ── Policy versioning + audit trail storage ────────────────────────────────
+# The "Deploy to Cloudflare" button provisions a fresh D1 database and R2
+# bucket and rewrites the ids below in your cloned repo. For a manual CLI
+# deploy, create them first and paste the database id:
+#   npx wrangler d1 create fetch-cf-config-db
 [[d1_databases]]
 binding = "DB"
 database_name = "fetch-cf-config-db"
-database_id = "YOUR_D1_DATABASE_ID"   # npx wrangler d1 create fetch-cf-config-db
+database_id = "YOUR_D1_DATABASE_ID"
 
 [[r2_buckets]]
 binding = "SNAPSHOTS"

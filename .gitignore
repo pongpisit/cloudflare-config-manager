@@ -1,5 +1,5 @@
 # local wrangler config with real account/database ids — never commit
-wrangler.toml
+wrangler.local.toml
 .dev.vars
 
 # dependencies & tooling state

@@ -1,8 +1,10 @@
--- D1 schema for fetch-cf-config: delta-based policy versioning + audit trail + rollback support.
--- This file mirrors migrations/001-init.sql exactly (the squashed baseline).
--- Fresh databases: `wrangler d1 migrations apply DB --remote` (run by the deploy script).
--- One-off inspection: npx wrangler d1 execute fetch-cf-config-db --remote --file=./schema.sql
-
+-- Baseline schema (v1): tables for configuration versions, the append-only
+-- audit trail and change detection. Fully idempotent (CREATE TABLE IF NOT
+-- EXISTS), so `wrangler d1 migrations apply` is safe on a fresh database and
+-- on one that already has the tables (e.g. built from schema.sql).
+-- Historical note: delta versioning, named snapshots, account scope and the
+-- audit-log watermark were incremental migrations; they are squashed into
+-- this baseline (schema.sql mirrors it exactly).
 -- Configuration versions. The first version for a zone is a full snapshot
 -- (kind='full'); subsequent versions usually store only the changed endpoints
 -- (kind='delta', payload = endpoint patches + item-level diff detail). A version's

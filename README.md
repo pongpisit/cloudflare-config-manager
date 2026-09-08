@@ -2,6 +2,8 @@
 
 A tool to fetch, version, audit, and roll back Cloudflare configurations — including **Zero Trust** — across multiple zones and accounts.
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/pongpisit/cloudflare-config-manager)
+
 ## RFP compliance
 
 | Requirement | Implementation |
@@ -200,7 +202,7 @@ npx wrangler secret delete ACCESS_AUD
 - Endpoints with more items than the page cap (100, DNS 500) are skipped for reconciliation — extend `per_page`/pagination in `src/categories.js` and `src/rollback.js` if needed.
 - First real rollback should be exercised against a test zone: dry-run preview → review the state diff → execute → confirm the verification checks pass.
 - Scheduled checks use the tracked endpoint list of each zone's latest version; the list updates whenever a full version is recorded or the endpoint set changes (recorded as a `meta` delta op).
-- Local D1 databases created before delta versioning need `migrations/002-delta-versioning.sql` applied.
+- D1 migrations are squashed into one idempotent baseline (`migrations/001-init.sql`, mirrored by `schema.sql`) — safe to run against fresh *and* pre-existing databases.
 
 ## Usage & cost estimate
 
@@ -242,24 +244,30 @@ Notes:
 
 ## Deployment
 
-1. Copy the config template and fill in your ids:
+### One-click (recommended)
+
+Click the **Deploy to Cloudflare** button above. Cloudflare clones the repo into your GitHub, provisions the **D1 database** and **R2 bucket** (rewriting the ids in your copy of `wrangler.toml`), applies the D1 migrations as part of the deploy script, and deploys the Worker.
+
+After it finishes, two optional steps unlock the full feature set:
+
+1. **Scheduled change detection** (5-minute cron) — set a read-only Cloudflare API token:
    ```bash
-   cp wrangler.example.toml wrangler.toml
-   # edit: account_id and the D1 database_id (create it with the command below)
+   npx wrangler secret put CF_API_TOKEN
    ```
-2. Create the bindings and deploy:
+2. **Named-user attribution + login** — protect the Worker with a **Cloudflare Access** application, then set its identity secrets (otherwise the app runs in anonymous mode):
    ```bash
-   npx wrangler d1 create fetch-cf-config-db        # copy the id into wrangler.toml
-   npx wrangler r2 bucket create fetch-cf-config-snapshots
-   npx wrangler d1 migrations apply fetch-cf-config-db --remote
-   npx wrangler deploy
-   ```
-3. Set secrets:
-   ```bash
-   npx wrangler secret put CF_API_TOKEN        # read-only Cloudflare API token used by the cron
    npx wrangler secret put ACCESS_TEAM_DOMAIN  # e.g. "myteam" from <myteam>.cloudflareaccess.com
    npx wrangler secret put ACCESS_AUD           # AUD tag of the Access application
    ```
-4. Protect the deployed worker with a **Cloudflare Access** application so only you can reach it.
 
-`wrangler.toml` (your real ids) is git-ignored; `wrangler.example.toml` is the committed template.
+Everything else (fetch, versions, diffs, restore) works immediately — paste your API token in the app's **Settings** page and click **Connect**.
+
+### From the CLI
+
+```bash
+git clone https://github.com/pongpisit/cloudflare-config-manager && cd cloudflare-config-manager
+npx wrangler d1 create fetch-cf-config-db        # paste the id into wrangler.toml
+npm run deploy                                    # applies migrations (binding DB) + deploys
+```
+
+The committed `wrangler.toml` is the template (placeholder database id). If you keep real ids on your machine, put them in `wrangler.local.toml` — it's git-ignored and `npm run deploy` picks it up automatically.

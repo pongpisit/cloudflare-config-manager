@@ -4,8 +4,19 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "sh scripts/deploy.sh",
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
     "test": "node test/rollback.test.mjs && node test/versioning.test.mjs",
     "test:ui": "node test/ui-restore.e2e.mjs"
+  },
+  "cloudflare": {
+    "bindings": {
+      "DB": {
+        "description": "**D1 database** — stores version metadata, the append-only audit trail, tracked zones and the audit-log watermark. Provisioned automatically during deploy; migrations run as part of the deploy script."
+      },
+      "SNAPSHOTS": {
+        "description": "**R2 bucket** — stores the gzipped configuration payloads: full snapshots and version deltas."
+      }
+    }
   }
 }
